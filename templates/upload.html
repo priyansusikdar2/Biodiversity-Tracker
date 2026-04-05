@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Upload Observation - Forest Biodiversity Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-area {
+        border: 3px dashed #dee2e6;
+        border-radius: 15px;
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .upload-area:hover {
+        border-color: #2d5a3f;
+        background: #f0fdf4;
+    }
+    
+    .upload-area.dragover {
+        border-color: #2d5a3f;
+        background: #e8f5e9;
+    }
+    
+    .image-preview {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .ai-result-card {
+        background: linear-gradient(135deg, #1a472a, #2d5a3f);
+        border-radius: 15px;
+        padding: 1.5rem;
+        color: white;
+    }
+    
+    .ai-result-success {
+        background: linear-gradient(135deg, #1a472a, #2d5a3f);
+    }
+    
+    .ai-result-warning {
+        background: linear-gradient(135deg, #856404, #b38f00);
+    }
+    
+    .ai-result-error {
+        background: linear-gradient(135deg, #721c24, #a71d2a);
+    }
+    
+    .confidence-badge {
+        font-size: 1.5rem;
+        font-weight: bold;
+        background: rgba(255,255,255,0.2);
+        padding: 5px 15px;
+        border-radius: 25px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #2d5a3f;
+    }
+    
+    .loading-spinner-small {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .ai-details {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+    
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Main Upload Card -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i>Upload Species Observation</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
+                    
+                    <!-- Image Upload Area -->
+                    <div class="upload-area mb-4" id="uploadArea">
+                        <i class="fas fa-camera fa-4x text-muted mb-3"></i>
+                        <h5>Drag & Drop or Click to Upload</h5>
+                        <p class="text-muted small mb-0">Supports JPG, PNG, GIF (Max 10MB)</p>
+                        <input type="file" name="image" id="imageInput" class="d-none" accept="image/*" required>
+                        <button type="button" class="btn btn-success mt-3" onclick="document.getElementById('imageInput').click()">
+                            <i class="fas fa-folder-open me-2"></i>Choose Image
+                        </button>
+                    </div>
+                    
+                    <!-- Image Preview -->
+                    <div id="imagePreview" style="display: none;" class="text-center mb-4">
+                        <img id="previewImg" class="image-preview" src="" alt="Preview">
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearImage()">
+                            <i class="fas fa-times me-1"></i>Remove Image
+                        </button>
+                    </div>
+                    
+                    <!-- AI Detection Result -->
+                    <div id="aiResult" style="display: none;"></div>
+                    
+                    <!-- Observation Details -->
+                    <div id="observationForm" style="display: none;">
+                        <div class="border-top pt-3 mt-2">
+                            <h5 class="mb-3"><i class="fas fa-info-circle me-2 text-success"></i>Observation Details</h5>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Location <span class="text-muted">(optional)</span></label>
+                                <input type="text" name="location" class="form-control" placeholder="e.g., Sundarbans Forest, Zone 3" id="id_location">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Latitude</label>
+                                <input type="number" step="any" name="latitude" class="form-control" placeholder="e.g., 21.9486" id="id_latitude">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Longitude</label>
+                                <input type="number" step="any" name="longitude" class="form-control" placeholder="e.g., 89.1833" id="id_longitude">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Temperature (°C)</label>
+                                <input type="number" step="0.1" name="temperature" class="form-control" placeholder="e.g., 28.5" id="id_temperature">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Humidity (%)</label>
+                                <input type="number" step="1" name="humidity" class="form-control" placeholder="e.g., 75" id="id_humidity">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Any additional observations..." id="id_notes"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save me-2"></i>Save Observation
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Tips Section -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h6><i class="fas fa-lightbulb text-warning me-2"></i>Pro Tips for Better Results</h6>
+                <div class="row text-center mt-3">
+                    <div class="col-md-4">
+                        <i class="fas fa-camera fa-2x text-success mb-2"></i>
+                        <p class="small mb-0">Use clear, well-lit photos</p>
+                    </div>
+                    <div class="col-md-4">
+                        <i class="fas fa-crosshairs fa-2x text-success mb-2"></i>
+                        <p class="small mb-0">Focus on the species</p>
+                    </div>
+                    <div class="col-md-4">
+                        <i class="fas fa-map-marker-alt fa-2x text-success mb-2"></i>
+                        <p class="small mb-0">Enable location for accuracy</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AI Status Card -->
+        <div class="card shadow-sm mt-4" id="aiStatusCard">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="info-icon bg-success bg-opacity-10 text-success me-3">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">AI Species Detection</h6>
+                        <small class="text-muted" id="aiStatusText">Checking AI status...</small>
+                    </div>
+                    <div class="ms-auto">
+                        <span class="badge bg-success" id="aiStatusBadge">Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Get CSRF token
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Clear image function
+function clearImage() {
+    imageInput.value = '';
+    imagePreview.style.display = 'none';
+    previewImg.src = '';
+    aiResult.style.display = 'none';
+    observationForm.style.display = 'none';
+    uploadArea.style.display = 'block';
+}
+
+// Image upload handling
+const uploadArea = document.getElementById('uploadArea');
+const imageInput = document.getElementById('imageInput');
+const imagePreview = document.getElementById('imagePreview');
+const previewImg = document.getElementById('previewImg');
+const aiResult = document.getElementById('aiResult');
+const observationForm = document.getElementById('observationForm');
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        handleImageUpload(file);
+    }
+});
+
+uploadArea.addEventListener('click', () => {
+    imageInput.click();
+});
+
+imageInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) {
+        handleImageUpload(e.target.files[0]);
+    }
+});
+
+async function handleImageUpload(file) {
+    // Reset UI
+    uploadArea.style.display = 'none';
+    
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        imagePreview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    
+    // Show loading state
+    aiResult.style.display = 'block';
+    aiResult.innerHTML = `
+        <div class="text-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; color: white;">
+            <div class="spinner-border text-light mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5>AI Analyzing Image...</h5>
+            <p class="mb-0 small">Please wait while our AI identifies the species</p>
+        </div>
+    `;
+    observationForm.style.display = 'none';
+    
+    // Send to AI
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+        const response = await fetch('/api/detect-species/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: formData
+        });
+        
+        const result = await response.json();
+        console.log('AI Result:', result);
+        
+        if (result.success && result.common_name && result.common_name !== 'Unknown') {
+            const confidencePercent = (result.confidence * 100).toFixed(1);
+            let confidenceColor = '';
+            let confidenceIcon = '';
+            
+            if (result.confidence >= 0.7) {
+                confidenceColor = '#28a745';
+                confidenceIcon = 'fa-check-circle';
+            } else if (result.confidence >= 0.4) {
+                confidenceColor = '#ffc107';
+                confidenceIcon = 'fa-chart-line';
+            } else {
+                confidenceColor = '#dc3545';
+                confidenceIcon = 'fa-exclamation-triangle';
+            }
+            
+            // Display success result
+            aiResult.innerHTML = `
+                <div style="background: linear-gradient(135deg, #1a472a, #2d5a3f); border-radius: 15px; padding: 1.5rem; color: white;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <i class="fas fa-robot fa-2x me-2"></i>
+                            <strong>AI Detection Successful!</strong>
+                        </div>
+                        <div class="confidence-badge" style="background: ${confidenceColor}20; color: ${confidenceColor};">
+                            <i class="fas ${confidenceIcon} me-1"></i>
+                            ${confidencePercent}% Confidence
+                        </div>
+                    </div>
+                    <div class="ai-details">
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <strong>Species:</strong><br>
+                                <span style="font-size: 1.1rem;">${result.common_name}</span>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <strong>Scientific Name:</strong><br>
+                                <em>${result.scientific_name || 'N/A'}</em>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <strong>Category:</strong><br>
+                                ${getCategoryName(result.category)}
+                            </div>
+                            <div class="col-md-12 mt-2">
+                                <strong>Description:</strong><br>
+                                ${result.description || 'No description available'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <i class="fas fa-check-circle me-1"></i>
+                        Species information auto-filled below
+                    </div>
+                </div>
+            `;
+            observationForm.style.display = 'block';
+        } else {
+            // Display warning result
+            aiResult.innerHTML = `
+                <div style="background: linear-gradient(135deg, #856404, #b38f00); border-radius: 15px; padding: 1.5rem; color: white;">
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-2"></i>
+                        <h5>Could Not Identify Species</h5>
+                        <p class="mb-0">The AI could not confidently identify the species in this image.</p>
+                        <p class="small mb-0 mt-2">Please fill the observation details manually.</p>
+                    </div>
+                </div>
+            `;
+            observationForm.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        aiResult.innerHTML = `
+            <div style="background: linear-gradient(135deg, #721c24, #a71d2a); border-radius: 15px; padding: 1.5rem; color: white;">
+                <div class="text-center">
+                    <i class="fas fa-exclamation-circle fa-3x mb-2"></i>
+                    <h5>AI Detection Failed</h5>
+                    <p class="mb-0">There was an error communicating with the AI service.</p>
+                    <p class="small mb-0 mt-2">Please fill the observation details manually.</p>
+                </div>
+            </div>
+        `;
+        observationForm.style.display = 'block';
+    }
+}
+
+function getCategoryName(category) {
+    const categories = {
+        'FA': '<i class="fas fa-paw me-1"></i> Fauna (Animal)',
+        'FL': '<i class="fas fa-leaf me-1"></i> Flora (Plant)',
+        'FU': '<i class="fas fa-mushroom me-1"></i> Fungi',
+        'OT': '<i class="fas fa-question-circle me-1"></i> Other'
+    };
+    return categories[category] || categories['OT'];
+}
+
+// Auto-location
+if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            document.getElementById('id_latitude').value = position.coords.latitude.toFixed(7);
+            document.getElementById('id_longitude').value = position.coords.longitude.toFixed(7);
+        },
+        (error) => {
+            console.log('Location error:', error);
+        }
+    );
+}
+
+// Check AI Status on page load
+async function checkAIStatus() {
+    try {
+        const response = await fetch('/api/ai-status/');
+        const data = await response.json();
+        
+        const statusText = document.getElementById('aiStatusText');
+        const statusBadge = document.getElementById('aiStatusBadge');
+        
+        if (data.ai_available) {
+            statusText.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i> AI is active and ready (${data.provider})`;
+            statusBadge.className = 'badge bg-success';
+            statusBadge.innerHTML = 'Active';
+        } else {
+            statusText.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-1"></i> AI is in mock mode. Add Gemini API key for accurate detection.';
+            statusBadge.className = 'badge bg-warning';
+            statusBadge.innerHTML = 'Mock Mode';
+        }
+    } catch (error) {
+        console.error('Error checking AI status:', error);
+    }
+}
+
+// Call on page load
+checkAIStatus();
+</script>
+{% endblock %}

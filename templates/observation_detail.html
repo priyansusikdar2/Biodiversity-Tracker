@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Observation #{{ observation.id }} - Details{% endblock %}
+
+{% block content %}
+<div class="observation-detail-container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'species_list' %}">Species</a></li>
+            <li class="breadcrumb-item active">Observation #{{ observation.id }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-image me-2"></i>Observation Image</h4>
+                </div>
+                <div class="card-body text-center">
+                    {% if observation.image %}
+                        <img src="{{ observation.image.url }}" class="img-fluid rounded shadow" alt="Observation">
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-image fa-4x text-muted"></i>
+                            <p class="mt-2">No image available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Observation Details</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="35%">Species:</th>
+                            <td>
+                                {% if observation.species %}
+                                    <strong>{{ observation.species.name }}</strong><br>
+                                    <small class="text-muted">{{ observation.species.scientific_name }}</small>
+                                {% else %}
+                                    <span class="text-warning">Unknown Species</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Observer:</th>
+                            <td>{{ observation.observer.username }}</td>
+                        </tr>
+                        <tr>
+                            <th>Location:</th>
+                            <td>{{ observation.location|default:"Not specified" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Coordinates:</th>
+                            <td>
+                                Lat: {{ observation.latitude|default:"-" }}<br>
+                                Long: {{ observation.longitude|default:"-" }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Date/Time:</th>
+                            <td>{{ observation.timestamp|date:"F j, Y H:i:s" }}</td>
+                        </tr>
+                        <tr>
+                            <th>AI Confidence:</th>
+                            <td>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-{% if observation.confidence_score > 70 %}success{% elif observation.confidence_score > 40 %}warning{% else %}danger{% endif %}" 
+                                         style="width: {{ observation.confidence_score|floatformat:0 }}%">
+                                        {{ observation.confidence_score|floatformat:0 }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>AI Verified:</th>
+                            <td>
+                                {% if observation.ai_verified %}
+                                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> Yes</span>
+                                {% else %}
+                                    <span class="badge bg-secondary"><i class="fas fa-clock"></i> Pending</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if observation.temperature %}
+                        <tr>
+                            <th>Temperature:</th>
+                            <td>{{ observation.temperature }}°C</td>
+                        </tr>
+                        {% endif %}
+                        {% if observation.humidity %}
+                        <tr>
+                            <th>Humidity:</th>
+                            <td>{{ observation.humidity }}%</td>
+                        </tr>
+                        {% endif %}
+                        {% if observation.weather_condition %}
+                        <tr>
+                            <th>Weather:</th>
+                            <td>{{ observation.get_weather_condition_display }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if observation.notes %}
+                        <tr>
+                            <th>Notes:</th>
+                            <td>{{ observation.notes|linebreaks }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'species_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back
+                        </a>
+                        <a href="{% url 'upload' %}" class="btn btn-success">
+                            <i class="fas fa-upload me-2"></i>New Observation
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

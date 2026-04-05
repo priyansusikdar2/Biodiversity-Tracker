@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ species.name }} - Species Details{% endblock %}
+
+{% block content %}
+<div class="species-detail-container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'species_list' %}">Species</a></li>
+            <li class="breadcrumb-item active">{{ species.name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>Species Information</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th width="40%">Common Name:</th>
+                                    <td><strong>{{ species.name }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Scientific Name:</th>
+                                    <td><em>{{ species.scientific_name }}</em></td>
+                                </tr>
+                                <tr>
+                                    <th>Category:</th>
+                                    <td>
+                                        <span class="badge bg-info">{{ species.get_category_display }}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Conservation Status:</th>
+                                    <td>
+                                        <span class="badge bg-{% if species.conservation_status == 'CR' %}danger{% elif species.conservation_status == 'EN' %}warning{% elif species.conservation_status == 'VU' %}info{% else %}success{% endif %}">
+                                            {{ species.get_conservation_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Native Status:</th>
+                                    <td>
+                                        {% if species.is_native %}
+                                        <i class="fas fa-check-circle text-success"></i> Native
+                                        {% else %}
+                                        <i class="fas fa-times-circle text-danger"></i> Introduced
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stats-box bg-light p-3 rounded">
+                                <h6><i class="fas fa-chart-simple me-2"></i>Statistics</h6>
+                                <hr>
+                                <p><strong>Total Observations:</strong> {{ species.detection_count }}</p>
+                                <p><strong>Last Seen:</strong> {{ species.last_seen|date:"F j, Y"|default:"Never" }}</p>
+                                <p><strong>Added on:</strong> {{ species.created_at|date:"F j, Y" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if species.description %}
+                    <div class="mt-3">
+                        <h6><i class="fas fa-align-left me-2"></i>Description</h6>
+                        <p>{{ species.description|linebreaks }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if species.threat_factors %}
+                    <div class="mt-3">
+                        <h6><i class="fas fa-exclamation-triangle text-warning me-2"></i>Threat Factors</h6>
+                        <p>{{ species.threat_factors|linebreaks }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'species_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to List
+                        </a>
+                        <a href="{% url 'upload' %}" class="btn btn-success">
+                            <i class="fas fa-camera me-2"></i>Report Sighting
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Observations</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for obs in observations %}
+                        <a href="{% url 'observation_detail' obs.id %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">{{ obs.timestamp|date:"M d, Y" }}</small>
+                                    <p class="mb-0 small">{{ obs.location|default:"Unknown location" }}</p>
+                                </div>
+                                <span class="badge bg-{% if obs.confidence_score > 70 %}success{% elif obs.confidence_score > 40 %}warning{% else %}danger{% endif %}">
+                                    {{ obs.confidence_score|floatformat:0 }}%
+                                </span>
+                            </div>
+                        </a>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-eye-slash fa-3x text-muted mb-2"></i>
+                            <p class="mb-0">No observations yet</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if observations %}
+                <div class="card-footer text-center">
+                    <small class="text-muted">Total: {{ observations|length }} observations</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Alerts - Forest Biodiversity Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-bell me-2 text-danger"></i>Alerts Center</h2>
+        <div>
+            <button class="btn btn-success" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-2"></i>Refresh
+            </button>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards - All Severities -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ active_alerts_count|default:"0" }}</h3>
+                    <p class="mb-0">Active Alerts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ resolved_alerts_count|default:"0" }}</h3>
+                    <p class="mb-0">Resolved Alerts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ avg_resolution_time|default:"0" }}{% if avg_resolution_time > 0 %}h{% endif %}</h3>
+                    <p class="mb-0">Avg Resolution Time</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ alerts|length|default:"0" }}</h3>
+                    <p class="mb-0">Total in View</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Severity Breakdown Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-dark">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ critical_alerts_count|default:"0" }}</h4>
+                    <p class="mb-0"><i class="fas fa-skull-crossbones me-1"></i>Critical</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ high_alerts_count|default:"0" }}</h4>
+                    <p class="mb-0"><i class="fas fa-exclamation-triangle me-1"></i>High</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ medium_alerts_count|default:"0" }}</h4>
+                    <p class="mb-0"><i class="fas fa-exclamation-circle me-1"></i>Medium</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ low_alerts_count|default:"0" }}</h4>
+                    <p class="mb-0"><i class="fas fa-info-circle me-1"></i>Low</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter Buttons -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="btn-group w-100" role="group">
+                        <a href="?status=active&severity={{ current_severity }}" 
+                           class="btn btn-outline-danger {% if current_status == 'active' %}active{% endif %}">
+                            <i class="fas fa-bell me-2"></i>Active Alerts
+                            <span class="badge bg-danger ms-2">{{ active_alerts_count|default:"0" }}</span>
+                        </a>
+                        <a href="?status=resolved&severity={{ current_severity }}" 
+                           class="btn btn-outline-success {% if current_status == 'resolved' %}active{% endif %}">
+                            <i class="fas fa-check-circle me-2"></i>Resolved Alerts
+                            <span class="badge bg-success ms-2">{{ resolved_alerts_count|default:"0" }}</span>
+                        </a>
+                        <a href="?status=all&severity={{ current_severity }}" 
+                           class="btn btn-outline-secondary {% if current_status == 'all' %}active{% endif %}">
+                            <i class="fas fa-list me-2"></i>All Alerts
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-4 mx-auto">
+                    <select class="form-select" id="severityFilter" onchange="applySeverityFilter()">
+                        <option value="">All Severities</option>
+                        <option value="C" {% if current_severity == 'C' %}selected{% endif %}>Critical</option>
+                        <option value="H" {% if current_severity == 'H' %}selected{% endif %}>High</option>
+                        <option value="M" {% if current_severity == 'M' %}selected{% endif %}>Medium</option>
+                        <option value="L" {% if current_severity == 'L' %}selected{% endif %}>Low</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alerts List -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-history me-2"></i>
+                Alert History
+                <span class="badge bg-secondary ms-2">{{ alerts|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if alerts %}
+                {% for alert in alerts %}
+                <div class="alert-item p-4 border-bottom" id="alert-{{ alert.id }}">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <div class="mb-2">
+                                <span class="badge bg-{{ alert.severity_color }} me-2">
+                                    <i class="fas fa-{% if alert.severity == 'C' %}skull-crossbones{% elif alert.severity == 'H' %}exclamation-triangle{% elif alert.severity == 'M' %}exclamation-circle{% else %}info-circle{% endif %} me-1"></i>
+                                    {{ alert.get_severity_display }}
+                                </span>
+                                <span class="badge bg-secondary me-2">
+                                    <i class="fas fa-tag me-1"></i>
+                                    {{ alert.get_alert_type_display }}
+                                </span>
+                                {% if not alert.is_resolved %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-circle me-1"></i>Active
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Resolved
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <h5 class="mb-2">{{ alert.title }}</h5>
+                            <p class="text-muted mb-2">{{ alert.message }}</p>
+                            
+                            <div class="row small text-muted">
+                                <div class="col-md-6">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Created: {{ alert.created_at|date:"Y-m-d H:i" }}
+                                </div>
+                                {% if alert.resolved_at %}
+                                <div class="col-md-6">
+                                    <i class="fas fa-check-circle me-1 text-success"></i>
+                                    Resolved: {{ alert.resolved_at|date:"Y-m-d H:i" }}
+                                    <br><small>Took: {{ alert.resolved_at|timeuntil:alert.created_at }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if alert.resolution_notes %}
+                            <div class="mt-2 p-2 bg-light rounded">
+                                <i class="fas fa-sticky-note me-1 text-info"></i>
+                                <strong>Resolution:</strong> {{ alert.resolution_notes }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 text-end">
+                            {% if not alert.is_resolved %}
+                            <button class="btn btn-success btn-sm resolve-btn w-100 mb-2" 
+                                    data-id="{{ alert.id }}"
+                                    data-title="{{ alert.title }}">
+                                <i class="fas fa-check me-1"></i>Resolve Alert
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <!-- Pagination -->
+                {% if alerts.has_other_pages %}
+                <div class="card-footer bg-white">
+                    <nav>
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if alerts.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ alerts.previous_page_number }}&status={{ current_status }}&severity={{ current_severity }}">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ alerts.number }} of {{ alerts.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if alerts.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ alerts.next_page_number }}&status={{ current_status }}&severity={{ current_severity }}">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                    <h4>No Alerts Found</h4>
+                    <p class="text-muted">
+                        {% if current_status == 'resolved' %}
+                            No resolved alerts yet.
+                        {% else %}
+                            No alerts in the system. All systems are healthy!
+                        {% endif %}
+                    </p>
+                    <button class="btn btn-primary mt-2" onclick="createSampleAlert()">
+                        <i class="fas fa-plus me-2"></i>Create Sample Alert
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Get CSRF token from cookie
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Apply severity filter
+function applySeverityFilter() {
+    const severity = document.getElementById('severityFilter').value;
+    const currentStatus = '{{ current_status }}';
+    let url = `?status=${currentStatus}`;
+    if (severity) url += `&severity=${severity}`;
+    window.location.href = url;
+}
+
+// Resolve alert function
+async function resolveAlert(alertId, alertTitle) {
+    const { value: notes } = await Swal.fire({
+        title: 'Resolve Alert',
+        text: `Resolving: ${alertTitle}`,
+        input: 'textarea',
+        inputLabel: 'Resolution Notes',
+        inputPlaceholder: 'Please describe how this alert was resolved...',
+        inputAttributes: {
+            'aria-label': 'Resolution notes'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Resolve',
+        cancelButtonText: 'Cancel',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Please enter resolution notes!';
+            }
+        }
+    });
+    
+    if (notes) {
+        Swal.fire({
+            title: 'Resolving...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        try {
+            const response = await fetch(`/alerts/resolve/${alertId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ notes: notes })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Resolved!',
+                    text: 'Alert has been resolved successfully.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.error || 'Failed to resolve alert',
+                    confirmButtonColor: '#d33'
+                });
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Network Error',
+                text: 'Could not connect to the server.',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
+}
+
+// Create sample alert with severity selection
+async function createSampleAlert() {
+    const result = await Swal.fire({
+        title: 'Create Sample Alert',
+        html: `
+            <input type="text" id="alertTitle" class="swal2-input" placeholder="Alert Title" required>
+            <textarea id="alertMessage" class="swal2-textarea" placeholder="Alert Message"></textarea>
+            <select id="alertSeverity" class="swal2-select">
+                <option value="L">Low</option>
+                <option value="M" selected>Medium</option>
+                <option value="H">High</option>
+                <option value="C">Critical</option>
+            </select>
+            <select id="alertType" class="swal2-select mt-2">
+                <option value="BD">Biodiversity Drop</option>
+                <option value="SD">Species Decline</option>
+                <option value="NS">New Species</option>
+                <option value="RE">Rare Species</option>
+                <option value="INV">Invasive Species</option>
+                <option value="THR">Threat Detected</option>
+            </select>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Create',
+        cancelButtonText: 'Cancel',
+        preConfirm: () => {
+            const title = document.getElementById('alertTitle').value;
+            if (!title) {
+                Swal.showValidationMessage('Please enter an alert title');
+                return false;
+            }
+            return {
+                title: title,
+                message: document.getElementById('alertMessage').value || 'Sample alert for testing',
+                severity: document.getElementById('alertSeverity').value,
+                alert_type: document.getElementById('alertType').value
+            };
+        }
+    });
+    
+    if (result.isConfirmed) {
+        Swal.fire({
+            title: 'Creating...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        try {
+            const response = await fetch('/api/create-sample-alert/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    title: result.value.title,
+                    message: result.value.message,
+                    severity: result.value.severity,
+                    alert_type: result.value.alert_type
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Created!',
+                    text: 'Sample alert created successfully.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.error || 'Failed to create alert',
+                    confirmButtonColor: '#d33'
+                });
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Network Error',
+                text: 'Could not connect to the server.',
+                confirmButtonColor: '#d33'
+            });
+        }
+    }
+}
+
+// Attach event listeners to resolve buttons
+document.querySelectorAll('.resolve-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const alertId = this.dataset.id;
+        const alertTitle = this.dataset.title;
+        resolveAlert(alertId, alertTitle);
+    });
+});
+</script>
+{% endblock %}

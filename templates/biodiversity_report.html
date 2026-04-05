@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Biodiversity Report - Forest Biodiversity Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-stat-card {
+        transition: transform 0.3s ease;
+        cursor: pointer;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .report-stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .trend-up {
+        color: #28a745;
+    }
+    
+    .trend-down {
+        color: #dc3545;
+    }
+    
+    .trend-neutral {
+        color: #ffc107;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+        margin: 20px 0;
+    }
+    
+    .insight-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 20px;
+        color: white;
+        margin-top: 20px;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+    }
+    
+    .date-filter {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-line me-2 text-success"></i>Biodiversity Report</h2>
+        <div>
+            <button class="btn btn-outline-success me-2" onclick="window.print()">
+                <i class="fas fa-print me-2"></i>Print Report
+            </button>
+            <button class="btn btn-success" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-2"></i>Refresh
+            </button>
+        </div>
+    </div>
+    
+    <!-- Date Filter -->
+    <div class="date-filter">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-2"></i>Apply Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="report-stat-card card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-leaf fa-2x mb-2"></i>
+                    <h3 class="stats-number">{{ total_species|default:"0" }}</h3>
+                    <p class="mb-0">Total Species</p>
+                    <small class="opacity-75">In database</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="report-stat-card card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-eye fa-2x mb-2"></i>
+                    <h3 class="stats-number">{{ total_observations|default:"0" }}</h3>
+                    <p class="mb-0">Total Observations</p>
+                    <small class="opacity-75">All time</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="report-stat-card card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-week fa-2x mb-2"></i>
+                    <h3 class="stats-number">{{ days_analyzed|default:"30" }}</h3>
+                    <p class="mb-0">Days Analyzed</p>
+                    <small class="opacity-75">{{ start_date|date:"M d" }} - {{ end_date|date:"M d" }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="report-stat-card card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h3 class="stats-number">{{ summary.period_observations|default:"0" }}</h3>
+                    <p class="mb-0">Period Observations</p>
+                    <small class="opacity-75">In selected range</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if has_data %}
+        <!-- Biodiversity Trend Chart -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-success"></i>Biodiversity Trend</h5>
+            </div>
+            <div class="card-body">
+                {% if has_metrics %}
+                    <div class="chart-container">
+                        <canvas id="biodiversityTrendChart"></canvas>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-chart-line fa-3x mb-2"></i>
+                        <p>No metrics data available for the selected period.</p>
+                        <small>Upload observations to generate biodiversity metrics.</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Key Metrics Row -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="metric-card text-center">
+                    <i class="fas fa-chart-bar fa-2x text-info mb-2"></i>
+                    <h6>Average Shannon Index</h6>
+                    <h3 class="text-info">{{ summary.avg_shannon|floatformat:3|default:"0.000" }}</h3>
+                    <small class="text-muted">Higher = More Diverse</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card text-center">
+                    <i class="fas fa-chart-pie fa-2x text-success mb-2"></i>
+                    <h6>Average Simpson Index</h6>
+                    <h3 class="text-success">{{ summary.avg_simpson|floatformat:3|default:"0.000" }}</h3>
+                    <small class="text-muted">Closer to 1 = More Diverse</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card text-center">
+                    <i class="fas fa-tree fa-2x text-warning mb-2"></i>
+                    <h6>Average Species Richness</h6>
+                    <h3 class="text-warning">{{ summary.avg_richness|floatformat:1|default:"0" }}</h3>
+                    <small class="text-muted">Species per day</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Metrics Table -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-table me-2"></i>Daily Metrics</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Shannon Index</th>
+                                <th>Simpson Index</th>
+                                <th>Species Richness</th>
+                                <th>Observations</th>
+                                <th>Evenness</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for metric in metrics %}
+                            <tr>
+                                <td><strong>{{ metric.date|date:"Y-m-d" }}</strong></td>
+                                <td>
+                                    {{ metric.shannon_index|floatformat:3 }}
+                                    {% if forloop.counter0 > 0 %}
+                                        {% with prev_metric=metrics|slice:forloop.counter0|last %}
+                                            {% if prev_metric.shannon_index < metric.shannon_index %}
+                                                <i class="fas fa-arrow-up text-success ms-1"></i>
+                                            {% elif prev_metric.shannon_index > metric.shannon_index %}
+                                                <i class="fas fa-arrow-down text-danger ms-1"></i>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                                <td>{{ metric.simpson_index|floatformat:3 }}</td>
+                                <td>
+                                    {{ metric.species_richness }}
+                                    {% if forloop.counter0 > 0 %}
+                                        {% with prev_metric=metrics|slice:forloop.counter0|last %}
+                                            {% if prev_metric.species_richness < metric.species_richness %}
+                                                <i class="fas fa-arrow-up text-success ms-1"></i>
+                                            {% elif prev_metric.species_richness > metric.species_richness %}
+                                                <i class="fas fa-arrow-down text-danger ms-1"></i>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                                <td>{{ metric.total_observations }}</td>
+                                <td>{{ metric.evenness|floatformat:3 }}</td>
+                                <td>
+                                    {% if metric.shannon_index >= 2.5 %}
+                                        <span class="badge bg-success">Excellent</span>
+                                    {% elif metric.shannon_index >= 1.5 %}
+                                        <span class="badge bg-info">Good</span>
+                                    {% elif metric.shannon_index >= 0.8 %}
+                                        <span class="badge bg-warning">Moderate</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Poor</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <i class="fas fa-chart-line fa-3x text-muted mb-2"></i>
+                                    <p class="mb-0">No metrics available for selected period</p>
+                                    <small>Upload observations to generate metrics</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Insights Section -->
+        <div class="insight-box mt-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5><i class="fas fa-lightbulb me-2"></i>Biodiversity Insights</h5>
+                    <ul class="mb-0">
+                        {% if summary.avg_shannon > 2 %}
+                            <li>✅ Your forest has <strong>Excellent biodiversity</strong> (Shannon Index > 2.0)</li>
+                        {% elif summary.avg_shannon > 1.5 %}
+                            <li>📈 Your forest has <strong>Good biodiversity</strong> - Keep monitoring!</li>
+                        {% elif summary.avg_shannon > 0.8 %}
+                            <li>⚠️ Your forest has <strong>Moderate biodiversity</strong> - Consider conservation efforts</li>
+                        {% else %}
+                            <li>🔴 Your forest has <strong>Low biodiversity</strong> - Urgent action recommended</li>
+                        {% endif %}
+                        
+                        {% if summary.avg_richness > 10 %}
+                            <li>🌿 High species richness - {{ summary.avg_richness|floatformat:0 }} species observed daily on average</li>
+                        {% elif summary.avg_richness > 5 %}
+                            <li>🍃 Moderate species richness - {{ summary.avg_richness|floatformat:0 }} species observed daily</li>
+                        {% else %}
+                            <li>🌱 Low species richness - Only {{ summary.avg_richness|floatformat:0 }} species per day</li>
+                        {% endif %}
+                        
+                        <li>📊 Total observations in period: <strong>{{ summary.period_observations }}</strong></li>
+                        <li>📈 Total observations overall: <strong>{{ total_observations }}</strong></li>
+                        <li>🌿 Total species in database: <strong>{{ total_species }}</strong></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 text-center">
+                    <a href="{% url 'upload' %}" class="btn btn-light btn-lg">
+                        <i class="fas fa-upload me-2"></i>Add More Data
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+    {% else %}
+        <!-- Empty State -->
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-cloud-upload-alt fa-5x text-muted mb-4"></i>
+                <h4>No Data Available</h4>
+                <p class="text-muted">Upload observations to generate biodiversity reports.</p>
+                <div class="mt-3">
+                    <a href="{% url 'upload' %}" class="btn btn-success btn-lg me-2">
+                        <i class="fas fa-upload me-2"></i>Upload First Observation
+                    </a>
+                    <a href="{% url 'species_list' %}" class="btn btn-outline-success btn-lg">
+                        <i class="fas fa-list me-2"></i>View Species List
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Navigation Links -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <hr>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{% url 'dashboard' %}" class="text-decoration-none">
+                    <i class="fas fa-chart-line me-1"></i> Dashboard
+                </a>
+                <a href="{% url 'species_list' %}" class="text-decoration-none">
+                    <i class="fas fa-leaf me-1"></i> Species
+                </a>
+                <a href="{% url 'alerts_list' %}" class="text-decoration-none">
+                    <i class="fas fa-bell me-1"></i> Alerts
+                </a>
+                <a href="{% url 'upload' %}" class="text-decoration-none">
+                    <i class="fas fa-upload me-1"></i> Upload
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Biodiversity Trend Chart
+{% if has_data and has_metrics %}
+const ctx = document.getElementById('biodiversityTrendChart').getContext('2d');
+
+// Prepare data from Django context
+const labels = [{% for metric in metrics %}'{{ metric.date|date:"M d" }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+const shannonData = [{% for metric in metrics %}{{ metric.shannon_index }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+const richnessData = [{% for metric in metrics %}{{ metric.species_richness }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Shannon Index',
+                data: shannonData,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                yAxisID: 'y'
+            },
+            {
+                label: 'Species Richness',
+                data: richnessData,
+                borderColor: '#17a2b8',
+                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                yAxisID: 'y1'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        plugins: {
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        let value = context.raw;
+                        if (context.dataset.label === 'Shannon Index') {
+                            return `${label}: ${value.toFixed(3)}`;
+                        }
+                        return `${label}: ${value}`;
+                    }
+                }
+            },
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                title: {
+                    display: true,
+                    text: 'Shannon Index',
+                    color: '#28a745'
+                },
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.05)'
+                }
+            },
+            y1: {
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Species Richness',
+                    color: '#17a2b8'
+                },
+                beginAtZero: true,
+                grid: {
+                    drawOnChartArea: false
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Date'
+                },
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Forest Biodiversity Tracker{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Banner -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-2">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Welcome to Biodiversity Dashboard
+                            </h2>
+                            <p class="mb-0">Track and monitor species diversity in real-time</p>
+                        </div>
+                        <div>
+                            <i class="fas fa-chart-pie fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm">
+                <div class="stat-icon bg-primary bg-opacity-10">
+                    <i class="fas fa-leaf fa-2x text-primary"></i>
+                </div>
+                <div class="stat-number">{{ total_species|default:"0" }}</div>
+                <div class="stat-label">Total Species</div>
+                <small class="text-success">
+                    <i class="fas fa-plus-circle"></i> {{ new_species_today|default:"0" }} new today
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm">
+                <div class="stat-icon bg-success bg-opacity-10">
+                    <i class="fas fa-eye fa-2x text-success"></i>
+                </div>
+                <div class="stat-number">{{ total_observations|default:"0" }}</div>
+                <div class="stat-label">Total Observations</div>
+                <small class="text-info">
+                    <i class="fas fa-chart-line"></i> {{ today_observations|default:"0" }} today
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm">
+                <div class="stat-icon bg-warning bg-opacity-10">
+                    <i class="fas fa-chart-bar fa-2x text-warning"></i>
+                </div>
+                <div class="stat-number">
+                    {% if latest_metrics %}
+                        {{ latest_metrics.shannon_index|floatformat:2 }}
+                    {% else %}
+                        0.00
+                    {% endif %}
+                </div>
+                <div class="stat-label">Shannon Index</div>
+                <small class="text-{{ health_color }}">
+                    <i class="fas fa-{{ health_icon }}"></i> {{ health_status }}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card shadow-sm">
+                <div class="stat-icon bg-danger bg-opacity-10">
+                    <i class="fas fa-bell fa-2x text-danger"></i>
+                </div>
+                <div class="stat-number">{{ active_alerts_count|default:"0" }}</div>
+                <div class="stat-label">Active Alerts</div>
+                <small class="text-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Needs attention
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Species Trend (Last 7 Days)
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Species Distribution
+                </div>
+                <div class="card-body">
+                    <canvas id="distributionChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Observations & Top Species -->
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <i class="fas fa-clock me-2"></i>
+                    Recent Observations
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Species</th>
+                                    <th>Observer</th>
+                                    <th>Location</th>
+                                    <th>Time</th>
+                                    <th>Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for obs in recent_observations %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ obs.species.name|default:"Unknown" }}</strong>
+                                        {% if obs.species.scientific_name %}
+                                        <br><small class="text-muted">{{ obs.species.scientific_name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ obs.observer.username }}</td>
+                                    <td>{{ obs.location|default:"-"|truncatechars:30 }}</td>
+                                    <td>{{ obs.timestamp|timesince }} ago</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-{% if obs.confidence_score > 70 %}success{% elif obs.confidence_score > 40 %}warning{% else %}danger{% endif %}" 
+                                                 style="width: {{ obs.confidence_score|floatformat:0 }}%">
+                                                {{ obs.confidence_score|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <i class="fas fa-camera fa-3x text-muted mb-3"></i>
+                                        <p class="mb-0">No observations yet.</p>
+                                        <a href="{% url 'upload' %}" class="btn btn-success mt-3">Upload First Observation</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <i class="fas fa-trophy me-2"></i>
+                    Most Observed Species
+                </div>
+                <div class="card-body">
+                    {% if top_species %}
+                        {% for species in top_species %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-{% if species.category == 'FA' %}paw{% else %}leaf{% endif %} fa-2x text-success"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ species.name }}</h6>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: {% widthratio species.detection_count max_observations 100 %}%"></div>
+                                </div>
+                                <small class="text-muted">{{ species.detection_count }} observation{{ species.detection_count|pluralize }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-chart-simple fa-3x text-muted mb-3"></i>
+                            <p class="mb-0">No data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Active Alerts Card -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header">
+                    <i class="fas fa-bell me-2 text-danger"></i>
+                    Active Alerts
+                    {% if active_alerts_count %}
+                    <span class="badge bg-danger ms-2">{{ active_alerts_count }}</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if active_alerts %}
+                        {% for alert in active_alerts %}
+                        <div class="alert alert-{{ alert.severity_color }} alert-sm mb-2">
+                            <strong>{{ alert.title }}</strong>
+                            <p class="mb-0 small">{{ alert.message|truncatechars:80 }}</p>
+                            <small class="text-muted">{{ alert.created_at|timesince }} ago</small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p class="mb-0">No active alerts! Great job!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Trend Chart
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ trend_labels|safe }},
+        datasets: [{
+            label: 'Species Observed',
+            data: {{ trend_data|safe }},
+            borderColor: '#2d5a3f',
+            backgroundColor: 'rgba(45, 90, 63, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#2d5a3f',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: { mode: 'index', intersect: false }
+        },
+        scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Number of Species' } }
+        }
+    }
+});
+
+// Distribution Chart
+const distCtx = document.getElementById('distributionChart').getContext('2d');
+new Chart(distCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ distribution_labels|safe }},
+        datasets: [{
+            data: {{ distribution_data|safe }},
+            backgroundColor: ['#2d5a3f', '#ffc107', '#dc3545', '#17a2b8', '#6c757d'],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                        return `${context.label}: ${context.parsed} (${percentage}%)`;
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
