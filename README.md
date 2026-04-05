@@ -206,21 +206,21 @@ python manage.py runserver
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🌿 FOREST BIODIVERSITY TRACKER                    🔔 3  👤 │
+│  🌿 FOREST BIODIVERSITY TRACKER                    🔔 3  👤 
 ├───────────────┬───────────────┬───────────────┬─────────────┤
-│  🌿 SPECIES   │  👁️ OBSERVATIONS│  📊 SHANNON   │  🔔 ALERTS   │
+│  🌿 SPECIES   │  👁️ OBSERVATIONS│  📊 SHANNON   │  🔔 ALERTS   
 │     47        │     1,284      │     2.45      │     12      │
 │   +5 today    │   +28 today    │   Excellent   │   Active    │
 ├───────────────┴───────────────┴───────────────┴─────────────┤
-│  📈 BIODIVERSITY TREND CHART                    📊 DISTRIBUTION │
-│      ↑                                                  🦁 45% │
-│    ↗                                                    🌿 35% │
-│  →                                                      🍄 20% │
+│  📈 BIODIVERSITY TREND CHART                 📊 DISTRIBUTION │
+│      ↑                                                🦁 45% │
+│    ↗                                                  🌿 35% │
+│  →                                                    🍄 20% │
 ├─────────────────────────────────────────────────────────────┤
 │  📸 RECENT OBSERVATIONS                                    │
-│  🦁 Bengal Tiger - Zone 3 - 2 mins ago                    │
-│  🐘 Asian Elephant - Zone 1 - 15 mins ago                 │
-│  🦚 Indian Peafowl - Zone 2 - 1 hour ago                  │
+│  🦁 Bengal Tiger - Zone 3 - 2 mins ago                     │
+│  🐘 Asian Elephant - Zone 1 - 15 mins ago                  │
+│  🦚 Indian Peafowl - Zone 2 - 1 hour ago                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
